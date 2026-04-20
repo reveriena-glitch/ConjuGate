@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conjugateur — French Verb Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161e;
+    --surface2: #1a1e2a;
+    --border: #252a38;
+    --border2: #2e3547;
+    --accent: #c9a84c;
+    --accent2: #e8c96a;
+    --text: #e8e4d9;
+    --muted: #7a7f94;
+    --soft: #b0b5c8;
+    --red: #e05c5c;
+    --green: #5ce0a0;
+    --blue: #5cb4e0;
+    --purple: #9b7fe8;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; overflow-x:hidden; }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image: linear-gradient(rgba(201,168,76,0.03) 1px,transparent 1px), linear-gradient(90deg,rgba(201,168,76,0.03) 1px,transparent 1px);
+    background-size:40px 40px; pointer-events:none; z-index:0;
+  }
+  .wrap { position:relative; z-index:1; max-width:900px; margin:0 auto; padding:40px 20px 80px; }
+
+  /* Header */
+  .header { text-align:center; margin-bottom:48px; animation:fadeDown 0.6s ease both; }
+  .logo { font-family:'Playfair Display',serif; font-size:clamp(2rem,6vw,3.2rem); font-weight:700; color:var(--text); letter-spacing:-0.02em; line-height:1; }
+  .logo span { color:var(--accent); font-style:italic; }
+  .tagline { font-size:0.82rem; color:var(--muted); font-family:'DM Mono',monospace; letter-spacing:0.15em; text-transform:uppercase; margin-top:10px; }
+
+  /* Search */
+  .search-area { animation:fadeUp 0.5s 0.1s ease both; margin-bottom:28px; }
+  .input-row { display:flex; gap:10px; align-items:stretch; }
+  .input-wrap { flex:1; position:relative; display:flex; align-items:center; }
+  .verb-input {
+    width:100%; background:var(--surface); border:1.5px solid var(--border2); border-radius:10px;
+    padding:16px 44px 16px 20px; color:var(--text); font-family:'Playfair Display',serif;
+    font-size:1.3rem; outline:none; transition:border-color 0.2s,box-shadow 0.2s;
+  }
+  .verb-input::placeholder { color:var(--muted); font-style:italic; }
+  .verb-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(201,168,76,0.12); }
+  .go-btn {
+    background:var(--accent); border:none; border-radius:10px; padding:16px 28px;
+    color:#0d0f14; font-family:'DM Sans',sans-serif; font-weight:500; font-size:0.9rem;
+    cursor:pointer; letter-spacing:0.04em; transition:background 0.2s,transform 0.1s; white-space:nowrap;
+  }
+  .go-btn:hover { background:var(--accent2); }
+  .go-btn:active { transform:scale(0.97); }
+  .go-btn:disabled { opacity:0.5; cursor:not-allowed; }
+  .clear-btn {
+    position:absolute; right:12px; background:none; border:none; color:var(--muted);
+    font-size:0.78rem; cursor:pointer; padding:4px 6px; border-radius:4px; line-height:1;
+    display:none; transition:color 0.15s,background 0.15s;
+  }
+  .clear-btn:hover { color:var(--text); background:var(--border2); }
+  .clear-btn.visible { display:block; }
+
+  /* Filters */
+  .filters-area { animation:fadeUp 0.5s 0.15s ease both; display:flex; flex-direction:column; gap:14px; margin-bottom:32px; }
+  .filter-group { display:flex; align-items:flex-start; gap:10px; }
+  .filter-label { font-family:'DM Mono',monospace; font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.12em; padding-top:8px; min-width:80px; }
+  .chips { display:flex; flex-wrap:wrap; gap:7px; }
+  .chip {
+    background:var(--surface); border:1.5px solid var(--border2); border-radius:20px;
+    padding:5px 14px; font-size:0.78rem; color:var(--soft); cursor:pointer;
+    transition:all 0.18s; font-family:'DM Sans',sans-serif; letter-spacing:0.02em; user-select:none;
+  }
+  .chip:hover { border-color:var(--accent); color:var(--accent); }
+  .chip.active { background:rgba(201,168,76,0.12); border-color:var(--accent); color:var(--accent); }
+  .chip-all.active { background:rgba(201,168,76,0.18); border-color:var(--accent); color:var(--accent); font-weight:500; }
+
+  .tense-clear-row { display:none; align-items:center; gap:8px; margin-top:4px; }
+  .tense-clear-row.visible { display:flex; }
+  .tense-showing-lbl { font-family:'DM Mono',monospace; font-size:0.65rem; color:var(--muted); letter-spacing:0.1em; }
+  .tense-name-badge { font-size:0.78rem; color:var(--accent); font-weight:500; }
+  .tense-clear-x {
+    background:rgba(201,168,76,0.1); border:1px solid rgba(201,168,76,0.25); color:var(--accent);
+    border-radius:12px; padding:2px 10px; font-size:0.72rem; cursor:pointer; transition:background 0.15s; font-family:'DM Sans',sans-serif;
+  }
+  .tense-clear-x:hover { background:rgba(201,168,76,0.22); }
+
+  .divider { border:none; border-top:1px solid var(--border); margin:10px 0 28px; opacity:0.5; }
+
+  /* Loading */
+  .loading { display:none; flex-direction:column; align-items:center; gap:16px; padding:60px 20px; }
+  .loading.show { display:flex; }
+  .spinner { width:36px; height:36px; border:2.5px solid var(--border2); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; }
+  .loading-text { font-family:'DM Mono',monospace; font-size:0.78rem; color:var(--muted); letter-spacing:0.1em; }
+
+  /* Error */
+  .error-msg { display:none; background:rgba(224,92,92,0.1); border:1px solid rgba(224,92,92,0.3); border-radius:8px; padding:14px 18px; color:var(--red); font-size:0.85rem; margin-bottom:20px; }
+  .error-msg.show { display:block; }
+
+  .results { display:none; animation:fadeUp 0.4s ease both; }
+  .results.show { display:block; }
+
+  /* Verb card */
+  .verb-card {
+    background:var(--surface); border:1.5px solid var(--border2); border-radius:14px;
+    padding:28px 32px; margin-bottom:20px; position:relative; overflow:hidden; transition:opacity 0.3s;
+  }
+  .verb-card::before { content:''; position:absolute; top:0;left:0;right:0; height:3px; background:linear-gradient(90deg,var(--accent),var(--purple)); }
+  /* Verb headline: name + speak button on same row, phonetic + type below */
+  .verb-headline {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .verb-name { font-family:'Playfair Display',serif; font-size:2.2rem; font-weight:700; color:var(--text); line-height:1.1; }
+  .speak-icon-btn {
+    display:flex; align-items:center; justify-content:center;
+    width:36px; height:36px; background:var(--surface2); border:1.5px solid var(--border2);
+    border-radius:50%; cursor:pointer; color:var(--soft); transition:all 0.18s; flex-shrink:0;
+    margin-top:2px;
+  }
+  .speak-icon-btn:hover { border-color:var(--blue); color:var(--blue); background:rgba(92,180,224,0.08); }
+  .speak-icon-btn.speaking { border-color:var(--blue); color:var(--blue); background:rgba(92,180,224,0.14); animation:pulse-ring 1s ease infinite; }
+  @keyframes pulse-ring { 0%,100%{box-shadow:0 0 0 0 rgba(92,180,224,0.35);}  50%{box-shadow:0 0 0 5px rgba(92,180,224,0);} }
+
+  /* Sub-headline: phonetic + verb type on row below verb name */
+  .verb-sub {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .phonetic {
+    /* Use Georgia/serif for IPA — DM Mono lacks IPA glyphs */
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1rem;
+    color: var(--soft);
+    letter-spacing: 0.02em;
+    background: var(--surface2);
+    padding: 4px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .verb-type { font-family:'DM Mono',monospace; font-size:0.72rem; color:var(--accent); text-transform:uppercase; letter-spacing:0.12em; background:rgba(201,168,76,0.1); padding:4px 10px; border-radius:4px; border:1px solid rgba(201,168,76,0.2); }
+
+  /* Meaning */
+  .verb-meta { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  @media(max-width:560px){.verb-meta{grid-template-columns:1fr;}}
+  .meta-title { font-family:'DM Mono',monospace; font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.14em; margin-bottom:4px; }
+  .meta-value { font-size:0.95rem; color:var(--soft); line-height:1.5; }
+  .meta-value strong { color:var(--text); font-weight:500; }
+
+  /* Example sentence */
+  .sentence-block { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:16px 20px; }
+  .sentence-label { font-family:'DM Mono',monospace; font-size:0.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.14em; margin-bottom:8px; }
+  .sentence-fr { font-family:'Playfair Display',serif; font-style:italic; font-size:1rem; color:var(--text); line-height:1.6; margin-bottom:6px; }
+  .sentence-en { font-size:0.82rem; color:var(--muted); line-height:1.5; }
+
+  /* Synonyms */
+  .synonyms-block { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px; }
+  @media(max-width:560px){.synonyms-block{grid-template-columns:1fr;}}
+  .syn-group { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+  .syn-title { font-family:'DM Mono',monospace; font-size:0.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.14em; margin-bottom:10px; }
+  .syn-pills { display:flex; flex-wrap:wrap; gap:7px; }
+  .syn-pill { background:rgba(155,127,232,0.08); border:1px solid rgba(155,127,232,0.22); color:#b9a8f0; border-radius:20px; padding:4px 12px; font-size:0.8rem; cursor:default; transition:background 0.15s; }
+  .syn-pill:hover { background:rgba(155,127,232,0.16); }
+  .syn-pill.en { background:rgba(92,180,224,0.08); border-color:rgba(92,180,224,0.22); color:#8ecfe8; }
+  .syn-pill.en:hover { background:rgba(92,180,224,0.16); }
+
+  /* Participe */
+  .participe-badge { display:inline-block; font-family:'DM Mono',monospace; font-size:0.9rem; color:var(--green); background:rgba(92,224,160,0.1); border:1px solid rgba(92,224,160,0.2); padding:6px 16px; border-radius:6px; margin-top:4px; }
+
+  /* Section title */
+  .section-title { font-family:'DM Mono',monospace; font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.18em; margin-bottom:14px; margin-top:24px; display:flex; align-items:center; gap:10px; }
+  .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  /* ── SINGLE TENSE: full-width layout ── */
+  .conj-single { background:var(--surface); border:1.5px solid var(--border2); border-radius:14px; overflow:hidden; }
+  .conj-single-header { padding:16px 24px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+  .conj-single-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .conj-single-name { font-family:'DM Mono',monospace; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.14em; font-weight:500; }
+
+  .pronoun-row { display:grid; grid-template-columns:90px 170px 1fr; border-bottom:1px solid var(--border); align-items:stretch; }
+  .pronoun-row:last-child { border-bottom:none; }
+  .pr-pronoun { padding:14px 20px; font-family:'DM Mono',monospace; font-size:0.78rem; color:var(--muted); border-right:1px solid var(--border); display:flex; align-items:center; background:rgba(255,255,255,0.01); }
+  .pr-form { padding:14px 18px; font-size:0.95rem; color:var(--text); border-right:1px solid var(--border); display:flex; align-items:center; font-weight:500; }
+  .pr-sentence { padding:12px 20px; display:flex; flex-direction:column; justify-content:center; gap:3px; }
+  .pr-sent-fr { font-family:'Playfair Display',serif; font-style:italic; font-size:0.88rem; color:var(--soft); line-height:1.4; }
+  .pr-sent-en { font-size:0.75rem; color:var(--muted); line-height:1.3; }
+
+  @media(max-width:600px) {
+    .pronoun-row { grid-template-columns:1fr; }
+    .pr-pronoun { border-right:none; border-bottom:1px solid var(--border); padding:10px 16px; }
+    .pr-form { border-right:none; border-bottom:1px solid var(--border); padding:8px 16px; }
+    .pr-sentence { padding:10px 16px 14px; }
+  }
+
+  /* ── ALL TENSES: grid ── */
+  .conj-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; }
+  .tense-card { background:var(--surface); border:1.5px solid var(--border); border-radius:12px; padding:20px 22px; transition:border-color 0.2s,transform 0.2s; }
+  .tense-card:hover { border-color:var(--border2); transform:translateY(-2px); }
+  .tense-name { font-family:'DM Mono',monospace; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.14em; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .tense-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .conj-table { width:100%; border-collapse:collapse; }
+  .conj-table tr+tr td { border-top:1px solid var(--border); }
+  .conj-table td { padding:7px 4px; font-size:0.86rem; line-height:1.3; }
+  .pronoun { color:var(--muted); font-size:0.78rem; width:70px; font-family:'DM Mono',monospace; }
+  .conjugated { color:var(--text); font-weight:400; }
+  .tense-sentences { margin-top:14px; border-top:1px solid var(--border); padding-top:12px; display:flex; flex-direction:column; gap:10px; }
+  .usage-fr { font-family:'Playfair Display',serif; font-style:italic; font-size:0.85rem; color:var(--text); line-height:1.4; margin-bottom:2px; }
+  .usage-en { font-size:0.74rem; color:var(--muted); line-height:1.3; }
+
+  /* Animations */
+  @keyframes fadeDown { from{opacity:0;transform:translateY(-16px);} to{opacity:1;transform:translateY(0);} }
+  @keyframes fadeUp   { from{opacity:0;transform:translateY(14px);}  to{opacity:1;transform:translateY(0);} }
+  @keyframes spin     { to{transform:rotate(360deg);} }
+
+  @media(max-width:480px) {
+    .filter-group{flex-direction:column;gap:6px;}
+    .filter-label{padding-top:0;min-width:unset;}
+    .verb-card{padding:20px 18px;}
+    .verb-name{font-size:1.7rem;}
+  }
+
+  /* API key bar */
+  .api-key-bar {
+    background: rgba(201,168,76,0.07);
+    border: 1.5px solid rgba(201,168,76,0.35);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+  }
+  .api-key-bar.hidden { display: none !important; }
+  .api-key-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .api-key-inner { display: flex; align-items: center; gap: 10px; }
+  .api-key-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1.5px solid var(--border2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+    min-width: 0;
+  }
+  .api-key-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(201,168,76,0.1); }
+  .api-key-input::placeholder { color: var(--muted); font-style: italic; }
+  .api-key-save {
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    color: #0d0f14;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+  }
+  .api-key-save:hover { background: var(--accent2); }
+  .api-key-hint {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+  .api-key-hint a { color: var(--accent); text-decoration: none; }
+  .api-key-hint a:hover { text-decoration: underline; }
+  .api-key-saved-row {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .api-key-saved-row.visible { display: flex; }
+  .api-key-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  .api-key-set-text { font-family: 'DM Mono', monospace; font-size: 0.75rem; color: var(--green); }
+  .api-key-change {
+    background: none; border: 1px solid var(--border2); color: var(--muted);
+    font-size: 0.72rem; cursor: pointer; padding: 3px 10px; border-radius: 6px;
+    font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+  }
+  .api-key-change:hover { color: var(--text); border-color: var(--soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="header">
+    <div class="logo">Conju<span>gateur</span></div>
+    <div class="tagline">French Verb Explorer · Powered by Gemini AI</div>
+  </header>
+
+  <div class="api-key-bar" id="apiKeyBar">
+    <div class="api-key-title">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+      Gemini API Key Required
+    </div>
+    <div id="apiKeyEntryRow">
+      <div class="api-key-inner">
+        <input type="password" id="apiKeyInput" class="api-key-input"
+          placeholder="Paste your key here: AIzaSy…"
+          autocomplete="off" spellcheck="false"/>
+        <button class="api-key-save" onclick="saveApiKey()">Save Key</button>
+      </div>
+      <div class="api-key-hint">
+        Get a free key at <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a> → Get API Key → Create API Key.
+        Stored in this tab only — never saved to disk.
+      </div>
+    </div>
+    <div class="api-key-saved-row" id="apiKeySavedRow">
+      <span class="api-key-dot"></span>
+      <span class="api-key-set-text">Gemini API key saved ✓</span>
+      <button class="api-key-change" onclick="changeApiKey()">Change key</button>
+    </div>
+  </div>
+
+  <div class="search-area">
+    <div class="input-row">
+      <div class="input-wrap">
+        <input class="verb-input" id="verbInput" type="text"
+          placeholder="enter a verb… parler, run, être…"
+          autocomplete="off" autocorrect="off" spellcheck="false"/>
+        <button class="clear-btn" id="clearBtn" onclick="clearInput()" title="Clear">✕</button>
+      </div>
+      <button class="go-btn" id="goBtn" onclick="handleSearch()">Conjugate →</button>
+    </div>
+  </div>
+
+  <div class="filters-area">
+    <div class="filter-group">
+      <div class="filter-label">Tenses</div>
+      <div style="display:flex;flex-direction:column;gap:8px;flex:1">
+        <div class="chips" id="tenseChips">
+          <div class="chip chip-all active" data-value="all">All</div>
+          <div class="chip" data-value="présent">Présent</div>
+          <div class="chip" data-value="passé composé">Passé Composé</div>
+          <div class="chip" data-value="imparfait">Imparfait</div>
+          <div class="chip" data-value="futur simple">Futur Simple</div>
+          <div class="chip" data-value="futur proche">Futur Proche</div>
+          <div class="chip" data-value="conditionnel présent">Conditionnel</div>
+          <div class="chip" data-value="subjonctif">Subjonctif</div>
+          <div class="chip" data-value="impératif">Impératif</div>
+          <div class="chip" data-value="participe passé">Participe Passé</div>
+        </div>
+        <div class="tense-clear-row" id="tenseClearRow">
+          <span class="tense-showing-lbl">Showing:</span>
+          <span class="tense-name-badge" id="activeTenseLabel"></span>
+          <button class="tense-clear-x" onclick="clearTenseFilter()">✕ clear</button>
+        </div>
+      </div>
+    </div>
+    <div class="filter-group">
+      <div class="filter-label">Level</div>
+      <div class="chips" id="levelChips">
+        <div class="chip active" data-value="A1">A1</div>
+        <div class="chip" data-value="A2">A2</div>
+        <div class="chip" data-value="B1">B1</div>
+        <div class="chip" data-value="B2">B2</div>
+        <div class="chip" data-value="C1">C1</div>
+        <div class="chip" data-value="C2">C2</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text">analysing verb…</div>
+  </div>
+  <div class="error-msg" id="errorMsg"></div>
+  <div class="results" id="results"></div>
+
+</div>
+<script>
+// ── Tense chips ───────────────────────────────────────────────────
+document.querySelectorAll('#tenseChips .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    if (chip.dataset.value === 'all') {
+      if (!chip.classList.contains('active')) {
+        document.querySelectorAll('#tenseChips .chip:not(.chip-all)').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        document.getElementById('tenseClearRow').classList.remove('visible');
+      }
+    } else {
+      document.querySelector('#tenseChips .chip-all').classList.remove('active');
+      document.querySelectorAll('#tenseChips .chip:not(.chip-all)').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      document.getElementById('tenseClearRow').classList.add('visible');
+      document.getElementById('activeTenseLabel').textContent = chip.textContent;
+    }
+    const verb = document.getElementById('verbInput').value.trim();
+    if (verb && document.getElementById('results').classList.contains('show')) handleSearch();
+  });
+});
+
+function clearTenseFilter() {
+  document.querySelectorAll('#tenseChips .chip:not(.chip-all)').forEach(c => c.classList.remove('active'));
+  document.querySelector('#tenseChips .chip-all').classList.add('active');
+  document.getElementById('tenseClearRow').classList.remove('visible');
+  const verb = document.getElementById('verbInput').value.trim();
+  if (verb && document.getElementById('results').classList.contains('show')) handleSearch();
+}
+
+// ── Level chips ───────────────────────────────────────────────────
+document.querySelectorAll('#levelChips .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('#levelChips .chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    const verb = document.getElementById('verbInput').value.trim();
+    if (verb && document.getElementById('results').classList.contains('show')) refreshLevelContent(verb, chip.dataset.value);
+  });
+});
+
+// ── Input ─────────────────────────────────────────────────────────
+document.getElementById('verbInput').addEventListener('keydown', e => { if (e.key === 'Enter') handleSearch(); });
+document.getElementById('verbInput').addEventListener('input', () => {
+  document.getElementById('clearBtn').classList.toggle('visible', document.getElementById('verbInput').value.length > 0);
+});
+
+function clearInput() {
+  document.getElementById('verbInput').value = '';
+  document.getElementById('clearBtn').classList.remove('visible');
+  document.getElementById('results').classList.remove('show');
+  showLoading(false); hideError();
+  document.getElementById('verbInput').focus();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+function getActiveTenses() {
+  if (document.querySelector('#tenseChips .chip-all')?.classList.contains('active'))
+    return ['présent','passé composé','imparfait','futur simple','futur proche','conditionnel présent','subjonctif','impératif','participe passé'];
+  return [...document.querySelectorAll('#tenseChips .chip:not(.chip-all).active')].map(c => c.dataset.value);
+}
+function getActiveLevel() { return document.querySelector('#levelChips .chip.active')?.dataset.value || 'A1'; }
+function isSingleMode() { return !document.querySelector('#tenseChips .chip-all')?.classList.contains('active'); }
+
+// ── Main search ───────────────────────────────────────────────────
+async function handleSearch() {
+  const verb = document.getElementById('verbInput').value.trim();
+  if (!verb) return;
+  const tenses = getActiveTenses();
+  const level = getActiveLevel();
+  if (!tenses.length) { showError('Select at least one tense.'); return; }
+  hideError(); showLoading(true);
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('goBtn').disabled = true;
+  try {
+    const data = await fetchConjugation(verb, tenses, level);
+    renderResults(data, verb, level);
+  } catch(err) {
+    showError(err.message || 'Something went wrong. Please try again.');
+  } finally {
+    showLoading(false);
+    document.getElementById('goBtn').disabled = false;
+  }
+}
+
+// ── API ───────────────────────────────────────────────────────────
+async function fetchConjugation(verb, tenses, level) {
+  const single = tenses.length === 1 && tenses[0] !== 'participe passé';
+
+  const perPronounBlock = single ? `
+  "pronoun_sentences": {
+    "je":       {"fr": "", "en": ""},
+    "tu":       {"fr": "", "en": ""},
+    "il_elle":  {"fr": "", "en": ""},
+    "nous":     {"fr": "", "en": ""},
+    "vous":     {"fr": "", "en": ""},
+    "ils_elles":{"fr": "", "en": ""}
+  },` : '';
+
+  const usageBlock = !single ? `
+  "usage_sentences": {
+    ${tenses.filter(t=>t!=='participe passé').map(t=>"${t}": [{"fr":"","en":""},{"fr":"","en":""}]).join(',\n    ')}
+  },` : '';
+
+  const prompt = `The user entered: "${verb}" (French or English).
+
+Return ONLY this JSON object:
+{
+  "infinitif": "French infinitive",
+  "phonetic": "IPA e.g. /paʁle/",
+  "type": "verb group e.g. 1er groupe (-er)",
+  "auxiliary": "être or avoir",
+  "meaning_fr": "French definition at ${level} level",
+  "translation_en": "English meaning at ${level} level",
+  "example_sentence_fr": "one French example sentence at ${level} level",
+  "example_sentence_en": "English translation",
+  "synonyms_fr": ["s1","s2","s3"],
+  "synonyms_en": ["s1","s2","s3"],${perPronounBlock}${usageBlock}
+  "conjugations": {
+    ${tenses.includes('présent') ? '"présent": {"je":"","tu":"","il/elle":"","nous":"","vous":"","ils/elles":""},' : ''}
+    ${tenses.includes('passé composé') ? '"passé composé": {"je":"","tu":"","il/elle":"","nous":"","vous":"","ils/elles":""},' : ''}
+    ${tenses.includes('imparfait') ? '"imparfait": {"je":"","tu":"","il/elle":"","nous":"","vous":"","ils/elles":""},' : ''}
+    ${tenses.includes('futur simple') ? '"futur simple": {"je":"","tu":"","il/elle":"","nous":"","vous":"","ils/elles":""},' : ''}
+    ${tenses.includes('futur proche') ? '"futur proche": {"je":"","tu":"","il/elle":"","nous":"","vous":"","ils/elles":""},' : ''}
+    ${tenses.includes('conditionnel présent') ? '"conditionnel présent": {"je":"","tu":"","il/elle":"","nous":"","vous":"","ils/elles":""},' : ''}
+    ${tenses.includes('subjonctif') ? "subjonctif": {"que je":"","que tu":"","qu'il/elle":"","que nous":"","que vous":"","qu'ils/elles":""}, : ''}
+    ${tenses.includes('impératif') ? '"impératif": {"tu":"","nous":"","vous":""},' : ''}
+    ${tenses.includes('participe passé') ? '"participe passé": {"form":""},' : ''}
+    "_x": ""
+  }
+}
+
+Rules:
+- Identify correct French infinitive even if input is English or a conjugated form.
+- phonetic: accurate IPA of the infinitive.
+- meaning_fr: A1=1 simple sentence basic vocab only; A2=1-2 simple sentences; B1=2 sentences+nuance; B2=detailed+usage notes; C1=academic precise; C2=exhaustive.
+- translation_en: A1=1-3 words; A2=short phrase; B1=phrase+context; B2=shades of meaning; C1/C2=rich nuanced.
+- example_sentence_fr: match ${level} CEFR complexity.
+- Fill ALL conjugation forms accurately.
+- passé composé: full form with auxiliary (e.g. "ai parlé").
+- futur proche: aller + infinitive (e.g. "vais parler").
+- synonyms: 3-4 items each.
+${single ? - pronoun_sentences: for tense "${tenses[0]}", write one natural sentence per pronoun (je/tu/il_elle/nous/vous/ils_elles) using that exact conjugated form at ${level} level. : - usage_sentences: 2 natural example sentences per tense at ${level} level.}
+- Return ONLY the JSON. No markdown, no explanation.`;
+
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error('Please enter your Gemini API key at the top of the page first.');
+
+  const fullPrompt = 'You are a French linguistics expert. Return ONLY valid JSON, no markdown, no explanation.\n\n' + prompt;
+  const txt = await callGemini(apiKey, fullPrompt, 2000);
+  try { return JSON.parse(txt.replace(/json|/g,'').trim()); }
+  catch { throw new Error('Could not parse response. Please try again.'); }
+}
+
+// ── Level refresh ─────────────────────────────────────────────────
+async function refreshLevelContent(verb, level) {
+  const card = document.querySelector('.verb-card');
+  if (card) card.style.opacity = '0.5';
+  try {
+    const apiKey2 = getApiKey();
+    if (!apiKey2) return;
+    const levelPrompt = You are a French linguistics expert. Return ONLY valid JSON, no markdown.\n\nFor the French verb "${verb}", return ONLY:\n{"meaning_fr":"","translation_en":"","example_sentence_fr":"","example_sentence_en":"","synonyms_fr":[],"synonyms_en":[]}\nLevel: ${level}. A1=1 simple sentence/1-3 words. A2=1-2 sentences/short phrase. B1=2 sentences nuance/phrase+context. B2=detailed/shades. C1=academic/detailed. C2=exhaustive/rich. Return ONLY JSON.;
+    const levelTxt = await callGemini(apiKey2, levelPrompt, 500);
+    const d = JSON.parse(levelTxt.replace(/json|/g,'').trim());
+    const q = s => document.querySelector(s);
+    if (q('.meta-block:nth-child(1) .meta-value')) q('.meta-block:nth-child(1) .meta-value').textContent = d.meaning_fr||'—';
+    if (q('.meta-block:nth-child(2) .meta-value')) q('.meta-block:nth-child(2) .meta-value').innerHTML = <strong>${d.translation_en||'—'}</strong>;
+    if (q('.sentence-fr')) q('.sentence-fr').textContent = d.example_sentence_fr||'';
+    if (q('.sentence-en')) q('.sentence-en').textContent = d.example_sentence_en||'';
+    if (q('.sentence-label')) q('.sentence-label').textContent = Example · ${level} level;
+    if (q('.syn-group:nth-child(1) .syn-pills') && d.synonyms_fr) q('.syn-group:nth-child(1) .syn-pills').innerHTML = d.synonyms_fr.map(s=><span class="syn-pill">${s}</span>).join('');
+    if (q('.syn-group:nth-child(2) .syn-pills') && d.synonyms_en) q('.syn-group:nth-child(2) .syn-pills').innerHTML = d.synonyms_en.map(s=><span class="syn-pill en">${s}</span>).join('');
+  } catch(e) {}
+  finally { if (card) card.style.opacity='1'; }
+}
+
+// ── Render ────────────────────────────────────────────────────────
+function renderResults(data, input, level) {
+  const tenses = getActiveTenses();
+  const conj = data.conjugations || {};
+  const single = isSingleMode();
+
+  const colors = {
+    'présent':'#5cb4e0','passé composé':'#9b7fe8','imparfait':'#e08c5c',
+    'futur simple':'#5ce0a0','futur proche':'#5ce0a0','conditionnel présent':'#e05c9b',
+    'subjonctif':'#e0d45c','impératif':'#c9a84c','participe passé':'#5ce0a0'
+  };
+
+  const safeVerb = (data.infinitif || input).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+  // ── Verb card ──
+  const verbCard = `<div class="verb-card">
+    <div class="verb-headline">
+      <div class="verb-name">${data.infinitif||input}</div>
+      <button class="speak-icon-btn" onclick="speakVerb('${safeVerb}',this)" title="Écouter la prononciation">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+      </button>
+    </div>
+    <div class="verb-sub">
+      ${data.phonetic?<span class="phonetic">${data.phonetic}</span>:''}
+      ${data.type?<div class="verb-type">${data.type}</div>:''}
+    </div>
+    <div class="verb-meta">
+      <div class="meta-block">
+        <div class="meta-title">Meaning in French</div>
+        <div class="meta-value">${data.meaning_fr||'—'}</div>
+      </div>
+      <div class="meta-block">
+        <div class="meta-title">English Translation</div>
+        <div class="meta-value"><strong>${data.translation_en||'—'}</strong></div>
+      </div>
+    </div>
+    <div class="sentence-block">
+      <div class="sentence-label">Example · ${level} level</div>
+      <div class="sentence-fr">${data.example_sentence_fr||''}</div>
+      <div class="sentence-en">${data.example_sentence_en||''}</div>
+    </div>
+    ${(data.synonyms_fr?.length||data.synonyms_en?.length)?`
+    <div class="synonyms-block">
+      ${data.synonyms_fr?.length?<div class="syn-group"><div class="syn-title">Synonymes · Français</div><div class="syn-pills">${data.synonyms_fr.map(s=><span class="syn-pill">${s}</span>).join('')}</div></div>:''}
+      ${data.synonyms_en?.length?<div class="syn-group"><div class="syn-title">Synonyms · English</div><div class="syn-pills">${data.synonyms_en.map(s=><span class="syn-pill en">${s}</span>).join('')}</div></div>:''}
+    </div>`:''}
+  </div>`;
+
+  // ── Participe passé ──
+  let participeHTML = '';
+  if (tenses.includes('participe passé') && conj['participe passé'])
+    participeHTML = <div class="section-title">Participe Passé</div><span class="participe-badge">${conj['participe passé'].form||''}</span>;
+
+  // ── Conjugation section ──
+  const tensesToRender = tenses.filter(t => t !== 'participe passé');
+  let conjHTML = '';
+
+  if (single && tensesToRender.length === 1) {
+    // Full-width single-tense view with per-pronoun sentences
+    const tense = tensesToRender[0];
+    const forms = conj[tense] || {};
+    const color = colors[tense] || '#c9a84c';
+    const ps = data.pronoun_sentences || {};
+
+    // Map display pronoun → sentence key
+    const sentKey = {
+      'je':'je','tu':'tu','il/elle':'il_elle','nous':'nous','vous':'vous','ils/elles':'ils_elles',
+      'que je':'je','que tu':'tu',"qu'il/elle":'il_elle','que nous':'nous','que vous':'vous',"qu'ils/elles":'ils_elles'
+    };
+
+    const rows = Object.entries(forms)
+      .filter(([k]) => k !== '_x')
+      .map(([pronoun, form]) => {
+        const sk = sentKey[pronoun] || 'je';
+        const s = ps[sk] || {};
+        return `<div class="pronoun-row">
+          <div class="pr-pronoun">${pronoun}</div>
+          <div class="pr-form">${form}</div>
+          <div class="pr-sentence">
+            ${s.fr ? <div class="pr-sent-fr">${s.fr}</div> : ''}
+            ${s.en ? <div class="pr-sent-en">${s.en}</div> : ''}
+          </div>
+        </div>`;
+      }).join('');
+
+    conjHTML = `<div class="section-title">Conjugation · ${tense}</div>
+      <div class="conj-single">
+        <div class="conj-single-header">
+          <span class="conj-single-dot" style="background:${color}"></span>
+          <span class="conj-single-name" style="color:${color}">${tense}</span>
+        </div>
+        ${rows}
+      </div>`;
+
+  } else if (tensesToRender.length > 0) {
+    // Grid of tense cards with usage sentences
+    const cards = tensesToRender.map(tense => {
+      if (!conj[tense]) return '';
+      const color = colors[tense] || '#c9a84c';
+      const tableRows = Object.entries(conj[tense])
+        .filter(([k]) => k !== '_x')
+        .map(([p,f]) => <tr><td class="pronoun">${p}</td><td class="conjugated">${f}</td></tr>).join('');
+      const sents = data.usage_sentences?.[tense] || [];
+      const sentHTML = sents.length ? <div class="tense-sentences">${sents.map(s=><div><div class="usage-fr">${s.fr||''}</div><div class="usage-en">${s.en||''}</div></div>).join('')}</div> : '';
+      return `<div class="tense-card">
+        <div class="tense-name" style="color:${color}"><span class="tense-dot" style="background:${color}"></span>${tense}</div>
+        <table class="conj-table">${tableRows}</table>${sentHTML}
+      </div>`;
+    }).join('');
+    conjHTML = <div class="section-title">Conjugations</div><div class="conj-grid">${cards}</div>;
+  }
+
+  document.getElementById('results').innerHTML = verbCard + participeHTML + conjHTML;
+  document.getElementById('results').classList.add('show');
+}
+
+// ── Core Gemini caller ──────────────────────────────────────────
+async function callGemini(apiKey, prompt, maxTokens) {
+  const url = https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey};
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.1, maxOutputTokens: maxTokens }
+    })
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error?.message || API error ${res.status});
+  }
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  if (!text) throw new Error('Empty response from Gemini. Please try again.');
+  return text;
+}
+
+// ── API key management ───────────────────────────────────────────
+let _apiKey = '';
+
+function saveApiKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (val.length < 10) {
+    showError('Please paste your Gemini API key first. Get one free at aistudio.google.com');
+    return;
+  }
+  _apiKey = val;
+  document.getElementById('apiKeyInput').value = '';
+  // Show saved state
+  document.getElementById('apiKeyEntryRow').style.display = 'none';
+  document.getElementById('apiKeySavedRow').classList.add('visible');
+  hideError();
+}
+
+function changeApiKey() {
+  _apiKey = '';
+  document.getElementById('apiKeyEntryRow').style.display = 'block';
+  document.getElementById('apiKeySavedRow').classList.remove('visible');
+  document.getElementById('apiKeyInput').value = '';
+  document.getElementById('apiKeyInput').focus();
+}
+
+function getApiKey() { return _apiKey; }
+
+// Allow Enter key in API input
+document.getElementById('apiKeyInput').addEventListener('keydown', e => { if (e.key === 'Enter') saveApiKey(); });
+
+// ── Speech ────────────────────────────────────────────────────────
+// Pre-load voices on page load (Chrome requires interaction first)
+let voicesReady = false;
+function loadVoices() {
+  const v = window.speechSynthesis?.getVoices();
+  if (v && v.length > 0) voicesReady = true;
+}
+if (window.speechSynthesis) {
+  window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+  loadVoices();
+}
+
+function speakVerb(text, btn) {
+  if (!window.speechSynthesis) { alert('Speech synthesis is not supported in this browser.'); return; }
+
+  if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+    window.speechSynthesis.cancel();
+    document.querySelectorAll('.speak-icon-btn').forEach(b => b.classList.remove('speaking'));
+    if (btn.dataset.wasPlaying === 'true') { btn.dataset.wasPlaying = ''; return; }
+  }
+
+  btn.dataset.wasPlaying = 'true';
+  btn.classList.add('speaking');
+
+  const doSpeak = () => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'fr-FR';
+    u.rate = 0.82;
+    u.pitch = 1;
+
+    const voices = window.speechSynthesis.getVoices();
+    // Prefer fr-FR, fall back to any fr voice
+    const frVoice = voices.find(v => v.lang === 'fr-FR') || voices.find(v => v.lang.startsWith('fr'));
+    if (frVoice) u.voice = frVoice;
+
+    u.onstart = () => btn.classList.add('speaking');
+    u.onend = () => { btn.classList.remove('speaking'); btn.dataset.wasPlaying = ''; };
+    u.onerror = (e) => {
+      console.warn('Speech error:', e);
+      btn.classList.remove('speaking'); btn.dataset.wasPlaying = '';
+    };
+    window.speechSynthesis.speak(u);
+  };
+
+  // Chrome sometimes needs a tiny delay after cancel
+  if (window.speechSynthesis.getVoices().length > 0) {
+    setTimeout(doSpeak, 50);
+  } else {
+    // Voices not loaded yet — wait for them
+    window.speechSynthesis.addEventListener('voiceschanged', function once() {
+      window.speechSynthesis.removeEventListener('voiceschanged', once);
+      setTimeout(doSpeak, 50);
+    });
+    // Trigger voice load
+    window.speechSynthesis.getVoices();
+  }
+}
+
+// ── UI ────────────────────────────────────────────────────────────
+function showLoading(show) { document.getElementById('loading').classList.toggle('show', show); }
+function showError(msg) { const e=document.getElementById('errorMsg'); e.textContent=msg; e.classList.add('show'); }
+function hideError() { document.getElementById('errorMsg').classList.remove('show'); }
+</script>
+</body>
+</html>
